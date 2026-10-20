@@ -115,25 +115,36 @@ echo "==> adding the FinnOS boot entries"
 # The layout has moved between releases, so the files are looked for in a
 # few known places instead of one.
 # The top-level syslinux.cfg on an Arch ISO is only a dispatcher
-# (whichsys.c32 picks pxe, sys or iso); the entries people see live in
-# archiso_sys.cfg. Take the first config that actually has a LINUX line.
-SYSCFG=""
-for p in /boot/syslinux/archiso_sys.cfg /boot/syslinux/syslinux.cfg \
-         /syslinux/archiso_sys.cfg /syslinux/syslinux.cfg \
-         /boot/syslinux/isolinux.cfg /isolinux/isolinux.cfg; do
-  rm -f "$WORK/syslinux.cfg"
-  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/syslinux.cfg" 2>/dev/null &&
-     grep -qE '^[[:space:]]*LINUX[[:space:]]' "$WORK/syslinux.cfg"; then
-    SYSCFG="$p"
+# (whichsys.c32 picks pxe, sys or iso); the entries people see are in a
+# file it includes. Rather than guess which, take the whole directory and
+# use the first config that actually has a LINUX line.
+BIOS_DIR=""
+for p in /boot/syslinux /syslinux /isolinux; do
+  rm -rf "$WORK/syslinux"
+  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/syslinux" 2>/dev/null; then
+    BIOS_DIR="$p"
     break
   fi
 done
 
-ENTRIES=""
-for p in /loader/entries /boot/loader/entries /EFI/loader/entries; do
-  rm -rf "$WORK/entries"
-  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/entries" 2>/dev/null; then
-    ENTRIES="$p"
+SYSCFG=""
+if [ -n "$BIOS_DIR" ]; then
+  echo "    BIOS menu files in $BIOS_DIR:"
+  ls -1 "$WORK/syslinux" 2>/dev/null | sed 's/^/      /' || true
+  for f in "$WORK"/syslinux/*.cfg; do
+    [ -f "$f" ] || continue
+    if grep -qE '^[[:space:]]*LINUX[[:space:]]' "$f"; then
+      SYSCFG="$f"
+      break
+    fi
+  done
+fi
+
+LOADER_DIR=""
+for p in /loader /boot/loader /EFI/loader; do
+  rm -rf "$WORK/loader"
+  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/loader" 2>/dev/null; then
+    LOADER_DIR="$p"
     break
   fi
 done
@@ -141,16 +152,16 @@ done
 MAPS=()
 if [ -n "$SYSCFG" ]; then
   echo "    BIOS menu: $SYSCFG"
-  sed 's/^/      | /' "$WORK/syslinux.cfg" | head -20 || true
-  LINUX_LINE="$(sed -n 's/^[[:space:]]*LINUX[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
-  INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
-  APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
+  sed 's/^/      | /' "$SYSCFG" | head -20 || true
+  LINUX_LINE="$(sed -n 's/^[[:space:]]*LINUX[[:space:]]*//p' "$SYSCFG" | head -1)"
+  INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$SYSCFG" | head -1)"
+  APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$SYSCFG" | head -1)"
   if [ -n "$LINUX_LINE" ] && [ -n "$APPEND_LINE" ]; then
     {
       echo "DEFAULT finnos"
       echo "PROMPT 0"
       echo "TIMEOUT 100"
-      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$WORK/syslinux.cfg" |
+      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$SYSCFG" |
         sed -E 's/^[[:space:]]*MENU TITLE.*/MENU TITLE FinnOS/'
       echo
       echo "LABEL finnos"
@@ -165,7 +176,7 @@ if [ -n "$SYSCFG" ]; then
       if [ -n "$INITRD_LINE" ]; then echo "  INITRD $INITRD_LINE"; fi
       echo "  APPEND $APPEND_LINE"
     } > "$WORK/syslinux.cfg.new"
-    MAPS+=(-map "$WORK/syslinux.cfg.new" "$SYSCFG")
+    MAPS+=(-map "$WORK/syslinux.cfg.new" "$BIOS_DIR/$(basename "$SYSCFG")")
   else
     echo "warning: could not read the kernel and append lines from $SYSCFG" >&2
   fi
@@ -173,18 +184,18 @@ else
   echo "warning: no syslinux menu found; the BIOS menu stays Arch's" >&2
 fi
 
-if [ -n "$ENTRIES" ]; then
-  echo "    UEFI entries: $ENTRIES"
-  ENTRY="$(ls "$WORK/entries"/*.conf 2>/dev/null | head -1 || true)"
+if [ -n "$LOADER_DIR" ] && [ -d "$WORK/loader/entries" ]; then
+  echo "    UEFI entries in $LOADER_DIR/entries:"
+  ls -1 "$WORK/loader/entries" | sed 's/^/      /' || true
+  ENTRY="$(ls "$WORK/loader/entries"/*.conf 2>/dev/null | head -1 || true)"
   if [ -n "$ENTRY" ]; then
-    cp "$ENTRY" "$WORK/entries/finnos.conf"
-    sed -i -E 's/^title.*/title   Install FinnOS/' "$WORK/entries/finnos.conf"
-    sed -i -E '/^options/ s/$/ finn.install/' "$WORK/entries/finnos.conf"
-    LOADER_DIR="${ENTRIES%/*}"
-    printf 'default finnos.conf\ntimeout 10\n' > "$WORK/loader.conf"
-    MAPS+=(-map "$WORK/loader.conf" "$LOADER_DIR/loader.conf")
-    for f in "$WORK/entries"/*.conf; do
-      MAPS+=(-map "$f" "$ENTRIES/$(basename "$f")")
+    cp "$ENTRY" "$WORK/loader/entries/finnos.conf"
+    sed -i -E 's/^title.*/title   Install FinnOS/' "$WORK/loader/entries/finnos.conf"
+    sed -i -E '/^options/ s/$/ finn.install/' "$WORK/loader/entries/finnos.conf"
+    printf 'default finnos.conf\ntimeout 10\n' > "$WORK/loader/loader.conf"
+    MAPS+=(-map "$WORK/loader/loader.conf" "$LOADER_DIR/loader.conf")
+    for f in "$WORK/loader/entries"/*.conf; do
+      MAPS+=(-map "$f" "$LOADER_DIR/entries/$(basename "$f")")
     done
   fi
 else
