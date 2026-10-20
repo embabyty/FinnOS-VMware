@@ -20,11 +20,11 @@ FREETYPE = $(shell pkg-config --cflags freetype2) $(shell pkg-config --libs free
 all: vgtest dockprev
 
 vgtest: vgtest.c $(DRAW) ../compositor/finnvg.h
-	$(CC) $(CFLAGS) $(FREETYPE) -o $@ vgtest.c $(DRAW) -lm
+	$(CC) $(CFLAGS) -o $@ vgtest.c $(DRAW) $(FREETYPE) -lm
 
 dockprev: dockprev.c ../compositor/finndock.c $(DRAW) ../compositor/finnvg.c
-	$(CC) $(CFLAGS) $(FREETYPE) -o $@ \
-	    dockprev.c ../compositor/finndock.c $(DRAW) ../compositor/finnvg.c -lm
+	$(CC) $(CFLAGS) -o $@ \
+	    dockprev.c ../compositor/finndock.c $(DRAW) ../compositor/finnvg.c $(FREETYPE) -lm
 
 clean:
 	rm -f vgtest dockprev

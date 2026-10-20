@@ -1,10 +1,33 @@
 #!/bin/bash
-# FinnOS ARM64 install: archboot live env -> /dev/sda
+# FinnOS x86_64 install: archboot live env -> /dev/sda
+#
+# The payload comes from the FINNOS install disc, which the VM has attached
+# as a second CD-ROM. If the disc is not attached the script falls back to
+# the host HTTP server, which is how the old workflow worked.
 exec > >(tee /tmp/finn-install.log) 2>&1
 set -x
 DISK=/dev/sda
 HOST=http://192.168.44.1:8765
+ISO_MNT=/finnos-iso
+SRC=""
 post() { curl -s -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
+
+echo "===== [0/8] FIND THE INSTALL DISC ====="
+if [ ! -d "$ISO_MNT" ]; then mkdir -p "$ISO_MNT"; fi
+for dev in /dev/sr0 /dev/sr1 /dev/sr2 /dev/sda2 /dev/sdb2; do
+  [ -b "$dev" ] || continue
+  if blkid "$dev" 2>/dev/null | grep -q 'LABEL="FINNOS"'; then
+    mount "$dev" "$ISO_MNT" && break
+  fi
+done
+if mountpoint -q "$ISO_MNT" && [ -f "$ISO_MNT/vm/finn-chroot.sh" ]; then
+  SRC="$ISO_MNT"
+  echo "install disc found on $ISO_MNT"
+else
+  umount "$ISO_MNT" 2>/dev/null || true
+  echo "no install disc; falling back to $HOST"
+fi
+post
 
 echo "===== [1/8] PREREQS ====="
 pacman -Sy --noconfirm arch-install-scripts dosfstools parted 2>&1 | tail -5 || {
@@ -51,7 +74,18 @@ post
 
 echo "===== [7/8] CHROOT ====="
 mkdir -p /mnt/root
-curl -sLo /mnt/root/finn-chroot.sh "$HOST/vm/finn-chroot.sh"
+if [ -n "$SRC" ]; then
+  # The disc carries the whole tree: the chroot script, the assets and the
+  # sources, so nothing has to come over the network.
+  cp "$SRC/vm/finn-chroot.sh" /mnt/root/finn-chroot.sh
+  mkdir -p /mnt/root/finnos-src
+  tar -C "$SRC" -cf - --exclude='.git' --exclude='*.o' --exclude='*.a' . \
+    | tar -C /mnt/root/finnos-src -xf -
+  echo "payload taken from the install disc"
+else
+  curl -sLo /mnt/root/finn-chroot.sh "$HOST/vm/finn-chroot.sh"
+  echo "payload taken from $HOST"
+fi
 chmod +x /mnt/root/finn-chroot.sh
 arch-chroot /mnt /root/finn-chroot.sh
 post

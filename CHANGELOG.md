@@ -5,6 +5,8 @@
 - Dev VM workflow moved from Parallels Desktop to VMware Workstation.
 - Added `vm/build-iso.sh` to produce a FinnOS install ISO for use as a
   VMware CD-ROM, removing the host HTTP server from the install path.
+  The installer now finds that disc by its `FINNOS` label and takes the
+  whole payload from it; the host server is only a fallback.
 
 The shape of this file is the shape of the project: the system is small,
 and the changes to it are worth reading.

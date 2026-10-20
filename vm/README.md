@@ -53,32 +53,42 @@ ssh finn@<guest-ip> '
 
 ## Installing a fresh VM
 
-The repository is supplied to the guest as an ISO image, so no host HTTP
-server is needed:
+The repository is supplied to the guest as an install disc, so no host
+HTTP server is needed. The VM has two CD-ROMs: the stock Arch Linux
+installer, and the FinnOS disc that carries the tree, the assets and the
+installer scripts.
 
-1. Build the ISO on the host or any Linux machine:
+1. Build the FinnOS ISO on the host or any Linux machine:
 
    ```sh
    vm/build-iso.sh
    ```
 
-2. Create the VMware VM:
+   The disc is labelled `FINNOS`, which is how the installer finds it.
+
+2. Create the VMware VM, with both discs attached:
 
    ```sh
    vm/create-dev-vm.sh
    ```
 
-3. Boot the VM from an Arch Linux x86_64 installer ISO, attach
-   `finnos.iso` as a second CD-ROM, and run the installer:
+   The Arch installer ISO is expected in `~/Downloads`; pass a path as the
+   third argument to override it.
+
+3. Boot the VM, log in on the installer, and run the installer:
 
    ```sh
-   curl -sLo /finn-install.sh /mnt/iso/vm/finn-install.sh
-   bash /finn-install.sh
+   mkdir -p /finnos-iso
+   mount /dev/sr1 /finnos-iso        # the disc labelled FINNOS
+   bash /finnos-iso/vm/finn-install.sh
    ```
 
-   `vm/finn-install.sh` partitions, formats, pacstraps and runs
-   `vm/finn-chroot.sh`, which configures the machine, installs the fonts
-   and the payload, and sets up the bootloader.
+   `vm/finn-install.sh` finds the disc itself, partitions, formats,
+   pacstraps and runs `vm/finn-chroot.sh`, which configures the machine,
+   installs the fonts and the payload, and sets up the bootloader.
+
+   If no disc is attached the installer falls back to the host HTTP
+   server, which is how the old workflow worked.
 
 4. Build the compositor on the machine and install it:
 
@@ -112,4 +122,4 @@ Every control-plane call is audited with the peer uid.
 ## Making one
 
 `vm/create-dev-vm.sh` creates an empty VMware VM with the right shape
-for the target. The ISO is attached by the script.
+for the target. Both discs are attached by the script.

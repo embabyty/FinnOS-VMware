@@ -1,26 +1,32 @@
 #!/bin/bash
-# Create a FinnOS dev VM for VMware Workstation (x86_64), and attach the
-# FinnOS install ISO as its CD-ROM.
+# Create a FinnOS dev VM for VMware Workstation (x86_64), with the Arch
+# Linux installer and the FinnOS install disc attached.
 #
-#   vm/create-dev-vm.sh [vm-name] [iso-path]
+#   vm/create-dev-vm.sh [vm-name] [finnos-iso] [arch-iso]
 #
-# The ISO is produced by vm/build-iso.sh; build it first, or pass a path to
-# an Arch Linux x86_64 installer ISO. VMware Workstation is the target
-# hypervisor: there is no Parallels dependency anywhere in this tree.
+# The FinnOS ISO is produced by vm/build-iso.sh. The Arch ISO is the stock
+# installer: the machine is installed from it, with the FinnOS disc
+# attached as the second CD-ROM. VMware Workstation is the target
+# hypervisor; there is no Parallels dependency anywhere in this tree.
 set -eux
 VM="${1:-FinnOS-dev}"
-ISO="${2:-$(cd "$(dirname "$0")/.." && pwd)/finnos.iso}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ISO="${2:-$ROOT/finnos.iso}"
+ARCH_ISO="${3:-$HOME/Downloads/archlinux-x86_64.iso}"
 MEM=4096 # match i3-4130 4GB target
 CPUS=2
 HDD=32768
 WORKDIR="${VMWARE_VM_DIR:-$HOME/Virtual Machines/$VM}"
 mkdir -p "$WORKDIR"
 
-if [ ! -f "$ISO" ]; then
-  echo "ISO not found: $ISO" >&2
-  echo "Build it first: vm/build-iso.sh" >&2
-  exit 1
-fi
+for f in "$ISO" "$ARCH_ISO"; do
+  if [ ! -f "$f" ]; then
+    echo "not found: $f" >&2
+    [ "$f" = "$ISO" ] && echo "Build it first: vm/build-iso.sh" >&2
+    [ "$f" = "$ARCH_ISO" ] && echo "Download it from archlinux.org" >&2
+    exit 1
+  fi
+done
 
 cat > "$WORKDIR/$VM.vmx" <<EOF
 .encoding = "UTF-8"
@@ -30,15 +36,21 @@ displayName = "$VM"
 guestOS = "other5xlinux-64"
 memsize = "$MEM"
 numvcpus = "$CPUS"
+firmware = "efi"
+bios.bootOrder = "cdrom,hdd"
 scsi0.present = "TRUE"
 scsi0.virtualDev = "lsilogic"
 scsi0:0.present = "TRUE"
 scsi0:0.fileName = "$VM.vmdk"
 scsi0:0.deviceType = "disk"
 ide1:0.present = "TRUE"
-ide1:0.fileName = "$ISO"
+ide1:0.fileName = "$ARCH_ISO"
 ide1:0.deviceType = "cdrom-image"
 ide1:0.startConnected = "TRUE"
+ide1:1.present = "TRUE"
+ide1:1.fileName = "$ISO"
+ide1:1.deviceType = "cdrom-image"
+ide1:1.startConnected = "TRUE"
 ethernet0.present = "TRUE"
 ethernet0.connectionType = "nat"
 ethernet0.virtualDev = "e1000"
@@ -56,4 +68,5 @@ else
 fi
 
 echo "VM created at: $WORKDIR/$VM.vmx"
-echo "Open it in VMware Workstation and power on. The ISO is attached as cdrom0."
+echo "Open it in VMware Workstation and power on."
+echo "cdrom0 = the Arch installer, cdrom1 = the FinnOS install disc."

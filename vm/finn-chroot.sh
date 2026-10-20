@@ -1,12 +1,25 @@
 #!/bin/bash
-# FinnOS chroot config — runs inside /mnt via arch-chroot.
+# FinnOS chroot config - runs inside /mnt via arch-chroot.
 #
 # It lays down the base image: the user, the services, the fonts, the
-# assets and the sources. It does not build the compositor — that happens
+# assets and the sources. It does not build the compositor - that happens
 # on the machine itself, with the toolchain that is now installed.
+#
+# The payload comes from /root/finnos-src, which the installer copied off
+# the install disc. If that is not there, it is fetched from the host.
 set -x
 HOST=http://192.168.44.1:8765
+SRC=/root/finnos-src
 post() { curl -s -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
+
+# get <destination> <path-in-the-tree>
+get() {
+  if [ -f "$SRC/$2" ]; then
+    install -D -m 644 "$SRC/$2" "$1"
+  else
+    curl -sLo "$1" "$HOST/$2"
+  fi
+}
 
 echo "=== base config ==="
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
@@ -40,7 +53,7 @@ post
 echo "=== Fixel Display fonts ==="
 mkdir -p /usr/share/fonts/OTF
 for f in FixelDisplay-Regular FixelDisplay-Medium FixelDisplay-SemiBold FixelDisplay-Bold; do
-  curl -sLo "/usr/share/fonts/OTF/$f.otf" "$HOST/assets/fonts/FixelDisplay/$f.otf"
+  get "/usr/share/fonts/OTF/$f.otf" "assets/fonts/FixelDisplay/$f.otf"
 done
 ls -la /usr/share/fonts/OTF/
 fc-cache -f >/dev/null 2>&1 || true
@@ -49,36 +62,40 @@ post
 
 echo "=== the payload: wallpaper, icons, registry, the package manager ==="
 mkdir -p /usr/share/finn/wallpaper /usr/share/finn/icons /var/lib/finnpkg /usr/local/bin
-curl -sLo /usr/share/finn/wallpaper/default.webp "$HOST/assets/wallpaper/default.webp"
-curl -sLo /usr/share/finn/apps.registry "$HOST/assets/apps.registry"
+get /usr/share/finn/wallpaper/default.webp assets/wallpaper/default.webp
+get /usr/share/finn/apps.registry assets/apps.registry
 for icon in battery battery_bolt bluetooth code cursor ethernet files moon notes start_button store studio sun sync terminal vault volume wifi; do
-  curl -sLo "/usr/share/finn/icons/$icon.svg" "$HOST/src/compositor/icons/$icon.svg"
+  get "/usr/share/finn/icons/$icon.svg" "src/compositor/icons/$icon.svg"
 done
-curl -sLo /usr/local/bin/finnpkg "$HOST/src/pkg/finnpkg" && chmod +x /usr/local/bin/finnpkg
+get /usr/local/bin/finnpkg src/pkg/finnpkg
+chmod +x /usr/local/bin/finnpkg
 chown -R root:finn /usr/share/finn /var/lib/finnpkg
 ls /usr/share/finn/icons/
 post
 
 echo "=== the system units ==="
-curl -sLo /etc/systemd/system/finn-comp.service "$HOST/arch-base/finn-comp.service"
-curl -sLo /etc/systemd/system/finnd.service "$HOST/arch-base/finnd.service"
-curl -sLo /usr/lib/tmpfiles.d/finn.conf "$HOST/arch-base/finn-tmpfiles.conf"
+get /etc/systemd/system/finn-comp.service arch-base/finn-comp.service
+get /etc/systemd/system/finnd.service arch-base/finnd.service
+get /usr/lib/tmpfiles.d/finn.conf arch-base/finn-tmpfiles.conf
 systemctl daemon-reload
 systemctl enable finn-comp finnd 2>/dev/null || true
 post
 
 echo "=== the sources, so the machine can build the compositor ==="
-# The host serves the repository as a tarball: `tar -czf /tmp/finnos.tar.gz
-# --exclude=.git -C <repo> .` and the installer picks it up from the same
-# place as everything else.
 mkdir -p /opt/finnos
-if curl -sfLo /tmp/finnos.tar.gz "$HOST/finnos.tar.gz"; then
-  tar -C /opt/finnos -xzf /tmp/finnos.tar.gz
+if [ -d "$SRC" ]; then
+  tar -C "$SRC" -cf - . | tar -C /opt/finnos -xf -
   chown -R finn:finn /opt/finnos
   echo "SOURCES=installed"
 else
-  echo "WARN: the source tarball was not available; push it with vm/deploy.sh"
-  echo "SOURCES=missing"
+  if curl -sfLo /tmp/finnos.tar.gz "$HOST/finnos.tar.gz"; then
+    tar -C /opt/finnos -xzf /tmp/finnos.tar.gz
+    chown -R finn:finn /opt/finnos
+    echo "SOURCES=installed"
+  else
+    echo "WARN: the sources were not available; push them with vm/deploy.sh"
+    echo "SOURCES=missing"
+  fi
 fi
 post
 
@@ -87,11 +104,9 @@ mkinitcpio -P 2>&1 | tail -5
 post
 ROOTUUID=$(blkid -s UUID -o value /dev/sda2)
 echo "ROOTUUID=$ROOTUUID"
-KERNEL=/Image
-[ -f /boot/Image ] || KERNEL=vmlinuz-linux
-echo "KERNEL=$KERNEL"
+KERNEL=vmlinuz-linux
 ls -la /boot/ | head -20
-if grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=FinnOS --removable 2>&1 | tail -5; then
+if grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=FinnOS --removable 2>&1 | tail -5; then
   grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | tail -5
   echo "BOOTLOADER=grub"
 else
