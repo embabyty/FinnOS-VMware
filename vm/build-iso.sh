@@ -75,6 +75,16 @@ echo "==> adding FinnOS to the live root"
 mkdir -p "$WORK/root/opt/finnos"
 cp -a "$WORK/payload/." "$WORK/root/opt/finnos/"
 
+# A checkout on a machine that does not keep the executable bit (Windows)
+# leaves the scripts flat, and the installer then cannot be run at all. A
+# file that starts with a shebang is meant to be run, so it is marked as
+# one here rather than left to the mode the checkout happened to produce.
+while IFS= read -r -d '' f; do
+  if [ "$(head -c 2 "$f" 2>/dev/null)" = "#!" ]; then
+    chmod 755 "$f"
+  fi
+done < <(find "$WORK/root/opt/finnos" -type f -print0)
+
 mkdir -p "$WORK/root/usr/local/bin"
 cat > "$WORK/root/usr/local/bin/finn-install" <<'EOF'
 #!/bin/bash
