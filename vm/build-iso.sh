@@ -141,7 +141,7 @@ done
 MAPS=()
 if [ -n "$SYSCFG" ]; then
   echo "    BIOS menu: $SYSCFG"
-  sed 's/^/      | /' "$WORK/syslinux.cfg" | head -20
+  sed 's/^/      | /' "$WORK/syslinux.cfg" | head -20 || true
   LINUX_LINE="$(sed -n 's/^[[:space:]]*LINUX[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
   INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
   APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
