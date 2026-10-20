@@ -37,7 +37,8 @@ for p in /arch/boot/x86_64 /arch/boot; do
 done
 [ -n "${KERNEL_DIR:-}" ] || { echo "error: no kernel on the ISO" >&2; exit 1; }
 
-LABEL="$(xorriso -indev "$ISO" -pvd_info 2>/dev/null | sed -n 's/^Volume id: *//p' | head -1)"
+LABEL="$(xorriso -indev "$ISO" -pvd_info 2>/dev/null |
+    sed -n "s/^Volume id *: *'\\(.*\\)'.*/\\1/p" | head -1)"
 [ -n "$LABEL" ] || { echo "error: the ISO has no volume label" >&2; exit 1; }
 
 echo "==> booting $ISO (label $LABEL) under QEMU, up to ${WAIT}s"
