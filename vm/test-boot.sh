@@ -37,16 +37,15 @@ for p in /arch/boot/x86_64 /arch/boot; do
 done
 [ -n "${KERNEL_DIR:-}" ] || { echo "error: no kernel on the ISO" >&2; exit 1; }
 
-LABEL="$(xorriso -indev "$ISO" -pvd_info 2>/dev/null |
-    sed -n "s/^Volume id *: *'\\(.*\\)'.*/\\1/p" | head -1)"
-[ -n "$LABEL" ] || { echo "error: the ISO has no volume label" >&2; exit 1; }
-
-echo "==> booting $ISO (label $LABEL) under QEMU, up to ${WAIT}s"
+# Point the initramfs at the disc directly rather than at its label: the
+# label on this image is the Arch one, and the test should not depend on
+# parsing it out of the ISO metadata.
+echo "==> booting $ISO under QEMU, up to ${WAIT}s"
 qemu-system-x86_64 \
     -machine q35 -m 2048 -smp 2 \
     -cdrom "$ISO" \
     -kernel "$WORK/vmlinuz" -initrd "$WORK/initramfs.img" \
-    -append "archisobasedir=arch archisolabel=$LABEL console=ttyS0" \
+    -append "archisobasedir=arch archisodevice=/dev/sr0 console=ttyS0" \
     -display none -serial "file:$LOG" -monitor none -no-reboot \
     & QEMU=$!
 
