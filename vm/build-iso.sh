@@ -114,11 +114,16 @@ echo "==> adding the FinnOS boot entries"
 # guessed, because they carry the release's kernel path and volume label.
 # The layout has moved between releases, so the files are looked for in a
 # few known places instead of one.
+# The top-level syslinux.cfg on an Arch ISO is only a dispatcher
+# (whichsys.c32 picks pxe, sys or iso); the entries people see live in
+# archiso_sys.cfg. Take the first config that actually has a LINUX line.
 SYSCFG=""
-for p in /boot/syslinux/syslinux.cfg /syslinux/syslinux.cfg \
+for p in /boot/syslinux/archiso_sys.cfg /boot/syslinux/syslinux.cfg \
+         /syslinux/archiso_sys.cfg /syslinux/syslinux.cfg \
          /boot/syslinux/isolinux.cfg /isolinux/isolinux.cfg; do
-  rm -rf "$WORK/syslinux.cfg"
-  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/syslinux.cfg" 2>/dev/null; then
+  rm -f "$WORK/syslinux.cfg"
+  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/syslinux.cfg" 2>/dev/null &&
+     grep -qE '^[[:space:]]*LINUX[[:space:]]' "$WORK/syslinux.cfg"; then
     SYSCFG="$p"
     break
   fi
@@ -136,6 +141,7 @@ done
 MAPS=()
 if [ -n "$SYSCFG" ]; then
   echo "    BIOS menu: $SYSCFG"
+  sed 's/^/      | /' "$WORK/syslinux.cfg" | head -20
   LINUX_LINE="$(sed -n 's/^[[:space:]]*LINUX[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
   INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
   APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
