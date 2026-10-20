@@ -13,7 +13,7 @@ SUBDIRS   = src/core src/compositor src/control src/tools
 
 PREFIX  ?= /usr/local
 DESTDIR ?=
-VM      ?= finn@10.211.55.6
+VM      ?= finn@192.168.44.128
 
 .PHONY: all core compositor control tools test check lint install clean deploy \
         docs help

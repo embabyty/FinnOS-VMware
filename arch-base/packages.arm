@@ -8,7 +8,7 @@
 #
 # The two targets:
 #
-#   ARM64   the dev VM, on Apple Silicon under Parallels
+#   x86_64  the dev VM, on VMware Workstation
 #   X86_64  the release target: an i3-4130 with HD Graphics and 4 GB
 #
 # The compositor needs the DRM headers, GBM, EGL and FreeType; the GPU

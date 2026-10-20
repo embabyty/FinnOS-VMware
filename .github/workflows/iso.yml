@@ -1,0 +1,20 @@
+name: ISO image
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  iso:
+    name: build the FinnOS install ISO
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build the ISO
+        run: vm/build-iso.sh finnos.iso
+      - name: upload the ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: finnos-iso
+          path: finnos.iso

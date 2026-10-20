@@ -16,7 +16,7 @@ explains the reasoning behind the rules rather than only stating them.
 ## The dev VM
 
 The compositor needs DRM, GBM, EGL, FreeType and the Fixel fonts. The Mac
-is an editor; the Arch VM in Parallels is the build machine. `vm/README.md`
+is an editor; the Arch VM in VMware is the build machine. `vm/README.md`
 has the details, including the address and the credentials.
 
 ```sh

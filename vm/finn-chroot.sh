@@ -5,7 +5,7 @@
 # assets and the sources. It does not build the compositor — that happens
 # on the machine itself, with the toolchain that is now installed.
 set -x
-HOST=http://10.211.55.2:8765
+HOST=http://192.168.44.1:8765
 post() { curl -s -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
 
 echo "=== base config ==="

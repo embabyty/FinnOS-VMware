@@ -3,7 +3,7 @@
 exec > >(tee /tmp/finn-install.log) 2>&1
 set -x
 DISK=/dev/sda
-HOST=http://10.211.55.2:8765
+HOST=http://192.168.44.1:8765
 post() { curl -s -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
 
 echo "===== [1/8] PREREQS ====="

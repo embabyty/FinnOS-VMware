@@ -12,7 +12,7 @@
  *
  * Two kinds of pointing device exist in the wild and both must work:
  *   relative — an ordinary mouse or touchpad (EV_REL, REL_X/REL_Y)
- *   absolute — a tablet, a touchscreen, and notably the Parallels
+ *   absolute - a tablet, a touchscreen, and notably the VMware guest
  *              "smart mouse" virtual tablet (EV_ABS, ABS_X/ABS_Y)
  * An absolute device reports its position over its own axis range, which is
  * normalised onto the scanout, exactly as a graphics tablet does.

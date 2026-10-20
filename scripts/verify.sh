@@ -12,7 +12,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-HOST="${FINN_HOST:-finn@10.211.55.6}"
+HOST="${FINN_HOST:-finn@192.168.44.128}"
 OUT="${FINN_SHOT_DIR:-/tmp}"
 fail=0
 

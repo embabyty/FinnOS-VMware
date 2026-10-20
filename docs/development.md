@@ -3,7 +3,7 @@
 ## The build machine is the VM
 
 The compositor needs the DRM headers, the GPU stack, FreeType and the
-fonts. The Mac is an editor; the Arch VM in Parallels is where the shell
+fonts. The host is an editor; the Arch VM in VMware is where the shell
 is built and run. Nothing is compiled on the host.
 
 ```sh
@@ -35,7 +35,7 @@ To drive the shell from a script, `finnctl` is the same client an agent
 would use:
 
 ```sh
-ssh finn@10.211.55.6 '
+ssh finn@<guest-ip> '
   sudo finnctl pointer.move x=1196 y=1506
   sudo finnctl pointer.click
   sleep 1
@@ -64,7 +64,7 @@ the vector rasteriser is judged.
 ## The services
 
 ```sh
-ssh finn@10.211.55.6 '
+ssh finn@<guest-ip> '
   systemctl status finn-comp finnd
   sudo journalctl -u finn-comp -f
   sudo journalctl -u finnd -f

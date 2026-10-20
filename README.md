@@ -32,7 +32,7 @@ permissioned unix socket that any script, and any agent, can drive.
 
 ## Getting it
 
-The build machine is the Arch VM in Parallels: it has the DRM headers, the
+The build machine is the Arch VM in VMware: it has the DRM headers, the
 GPU stack and the fonts.
 
 ```sh

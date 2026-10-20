@@ -20,7 +20,7 @@ and means the same control plane is scriptable with nothing but ssh:
 Implemented without the official SDK so it runs on any Python 3.6+ host.
 
 Configuration (environment):
-    FINN_HOST       ssh target for the device   (default finn@10.211.55.6)
+    FINN_HOST       ssh target for the device   (default finn@192.168.44.128)
     FINN_SSH_PORT   ssh port                    (default 22)
     FINN_TIMEOUT    per-call timeout, seconds   (default 120)
 
@@ -40,7 +40,7 @@ SUPPORTED_PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SERVER_NAME = "finnos"
 SERVER_VERSION = "0.1.0"
 
-HOST = os.environ.get("FINN_HOST", "finn@10.211.55.6")
+HOST = os.environ.get("FINN_HOST", "finn@192.168.44.128")
 PORT = os.environ.get("FINN_SSH_PORT", "22")
 TIMEOUT = float(os.environ.get("FINN_TIMEOUT", "120"))
 

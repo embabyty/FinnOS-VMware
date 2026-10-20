@@ -25,8 +25,8 @@ fast-moving spec out of the operating system, and it means the same control
 plane is fully scriptable with nothing but `ssh`:
 
 ```sh
-ssh finn@10.211.55.6 finnctl state.set battery=42 charging=1
-ssh finn@10.211.55.6 finnctl screen.capture -o - > shot.ppm
+ssh finn@192.168.44.128 finnctl state.set battery=42 charging=1
+ssh finn@192.168.44.128 finnctl screen.capture -o - > shot.ppm
 ```
 
 ## Requirements
@@ -42,7 +42,7 @@ instead of an inline PNG.
 ```
 
 ```
-finn-mcp -> finn@10.211.55.6
+finn-mcp -> finn@192.168.44.128
   ping: FINNCTL/1
   framebuffer: 2560x1600
   tools: 11
@@ -52,7 +52,7 @@ finn-mcp -> finn@10.211.55.6
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `FINN_HOST` | `finn@10.211.55.6` | ssh target for the device |
+| `FINN_HOST` | `finn@192.168.44.128` | ssh target for the device |
 | `FINN_SSH_PORT` | `22` | ssh port |
 | `FINN_TIMEOUT` | `120` | per-call timeout, seconds |
 
@@ -81,7 +81,7 @@ Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json
   "mcpServers": {
     "finnos": {
       "command": "/Users/abhi/Desktop/FinnOS/mcp/finn-mcp",
-      "env": { "FINN_HOST": "finn@10.211.55.6" }
+      "env": { "FINN_HOST": "finn@192.168.44.128" }
     }
   }
 }

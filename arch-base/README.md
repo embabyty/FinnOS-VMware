@@ -19,7 +19,7 @@ display server but the one it was built with.
 
 | | |
 |---|---|
-| **ARM64** | the dev VM: Apple Silicon under Parallels. The GPU is Apple M4 through virgl. |
+| **x86_64** | the dev VM: VMware Workstation on x86_64. The GPU is Intel HD Graphics through Mesa. |
 | **x86_64** | the release target: an i3-4130 with HD Graphics 4400 and 4 GB of RAM. |
 
 The compositor's budget on that machine is under 120 MB of RAM and 60 MB
@@ -28,7 +28,7 @@ of VRAM at 1080p, and an idle desktop redraws nothing at all.
 ## Running it
 
 ```sh
-ssh finn@10.211.55.6 'sudo arch-base/setup.sh'
+ssh finn@192.168.44.128 'sudo arch-base/setup.sh'
 ```
 
 Then build the compositor on the machine and install it:

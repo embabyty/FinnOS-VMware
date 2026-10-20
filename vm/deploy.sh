@@ -13,7 +13,7 @@
 # minimal Arch install and does not have rsync on it.
 set -euo pipefail
 
-HOST="${FINN_HOST:-finn@10.211.55.6}"
+HOST="${FINN_HOST:-finn@192.168.44.128}"
 REMOTE="${FINN_REMOTE:-~/finnos}"
 RESTART=1
 [ "${1:-}" = "--no-restart" ] && RESTART=0
