@@ -180,12 +180,28 @@ if [ -n "$SYSCFG" ]; then
   INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$SYSCFG" | head -1)"
   APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$SYSCFG" | head -1)"
   if [ -n "$LINUX_LINE" ] && [ -n "$APPEND_LINE" ]; then
+    # The stock file has a plain live entry and a speech entry. The plain
+    # one is what "FinnOS live shell" is, so it goes; the speech one stays,
+    # because a screen reader is still a way in.
+    STOCK="$WORK/stock.cfg"
+    awk '
+      /^[[:space:]]*LABEL[[:space:]]/ {
+        if (block != "") { if (speech) printf "%s", block }
+        block = $0 "\n"; speech = 0; next
+      }
+      {
+        if (block == "") { print; next }
+        block = block $0 "\n"
+        if ($0 ~ /accessibility=on/) speech = 1
+      }
+      END { if (block != "" && speech) printf "%s", block }
+    ' "$SYSCFG" > "$STOCK"
+    sed -i -E 's/^([[:space:]]*MENU LABEL[[:space:]]+)FinnOS install medium \([^)]*\) with \^speech$/\1FinnOS live shell with ^speech/' "$STOCK"
+    sed -i 's/Boot the FinnOS install medium/Boot the FinnOS live shell/' "$STOCK"
     {
       echo "DEFAULT finnos"
       echo "PROMPT 0"
       echo "TIMEOUT 100"
-      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$SYSCFG"
-      echo
       echo "LABEL finnos"
       echo "  MENU LABEL Install FinnOS"
       echo "  LINUX $LINUX_LINE"
@@ -197,6 +213,7 @@ if [ -n "$SYSCFG" ]; then
       echo "  LINUX $LINUX_LINE"
       if [ -n "$INITRD_LINE" ]; then echo "  INITRD $INITRD_LINE"; fi
       echo "  APPEND $APPEND_LINE"
+      cat "$STOCK"
     } > "$WORK/syslinux.cfg.new"
     mv "$WORK/syslinux.cfg.new" "$SYSCFG"
   else
@@ -219,6 +236,8 @@ if [ -n "$LOADER_DIR" ] && [ -d "$WORK/loader/entries" ]; then
   echo "    UEFI entries in $LOADER_DIR/entries:"
   ls -1 "$WORK/loader/entries" | sed 's/^/      /' || true
   sed -i 's/Arch Linux/FinnOS/g' "$WORK"/loader/entries/*.conf
+  # The stock entries boot the live environment; only the new one installs.
+  sed -i -E 's/^(title[[:space:]]+)FinnOS install medium(.*)$/\1FinnOS live medium\2/' "$WORK"/loader/entries/*.conf
   ENTRY="$(ls "$WORK/loader/entries"/*.conf 2>/dev/null | head -1 || true)"
   if [ -n "$ENTRY" ]; then
     # A numeric prefix sorts it to the top of the menu; the default is

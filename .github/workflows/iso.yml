@@ -48,6 +48,7 @@ jobs:
           grep -rE 'MENU TITLE FinnOS' /tmp/syslinux
           grep -E 'DEFAULT finnos' /tmp/syslinux/archiso_sys-linux.cfg
           grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux/archiso_sys-linux.cfg
+          grep -E 'MENU LABEL FinnOS live shell' /tmp/syslinux/archiso_sys-linux.cfg
           ! grep -rE 'Arch Linux' /tmp/syslinux/*.cfg
           xorriso -osirrox on -indev finnos.iso \
             -extract /loader/entries /tmp/entries
