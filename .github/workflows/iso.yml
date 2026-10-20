@@ -57,6 +57,16 @@ jobs:
           ! grep -rE 'Arch Linux' /tmp/entries
       - name: boot it
         run: vm/test-boot.sh finnos.iso
+      - name: look at the menu
+        run: vm/menu-shot.sh finnos.iso /tmp/menu
+      - name: the menu frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-menu
+          path: |
+            /tmp/menu/frame-*.png
+            /tmp/menu/frame-*.ppm
+          if-no-files-found: warn
       - name: upload the ISO
         uses: actions/upload-artifact@v4
         with:
