@@ -7,14 +7,30 @@ on:
 
 jobs:
   iso:
-    name: build the FinnOS install ISO
+    name: build and boot the FinnOS install ISO
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: the tool that writes the image
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xorriso
+      - name: the tools that write the image
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xorriso squashfs-tools qemu-system-x86
+      - name: the Arch Linux base
+        run: |
+          mkdir -p .cache
+          curl -fsSLo .cache/archlinux-x86_64.iso \
+            https://geo.mirror.pkgbuild.com/iso/latest/archlinux-x86_64.iso
+          curl -fsSLo sha256sums.txt \
+            https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt
+          (cd .cache && grep 'archlinux-x86_64.iso' ../sha256sums.txt | sha256sum -c -)
       - name: build the ISO
         run: vm/build-iso.sh finnos.iso
+      - name: the disc is bootable
+        run: |
+          xorriso -indev finnos.iso -report_el_torito plain
+      - name: boot it
+        run: vm/test-boot.sh finnos.iso
       - name: upload the ISO
         uses: actions/upload-artifact@v4
         with:

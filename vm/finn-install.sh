@@ -12,20 +12,28 @@ ISO_MNT=/finnos-iso
 SRC=""
 post() { curl -s -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
 
-echo "===== [0/8] FIND THE INSTALL DISC ====="
-if [ ! -d "$ISO_MNT" ]; then mkdir -p "$ISO_MNT"; fi
-for dev in /dev/sr0 /dev/sr1 /dev/sr2 /dev/sda2 /dev/sdb2; do
-  [ -b "$dev" ] || continue
-  if blkid "$dev" 2>/dev/null | grep -q 'LABEL="FINNOS"'; then
-    mount "$dev" "$ISO_MNT" && break
-  fi
-done
-if mountpoint -q "$ISO_MNT" && [ -f "$ISO_MNT/vm/finn-chroot.sh" ]; then
-  SRC="$ISO_MNT"
-  echo "install disc found on $ISO_MNT"
+echo "===== [0/8] FIND THE PAYLOAD ====="
+# The bootable disc carries the tree in the live root, which is where the
+# installer normally runs from. A separate data disc labelled FINNOS still
+# works for the two-disc flow, and the host server is the last resort.
+if [ -f /opt/finnos/vm/finn-chroot.sh ]; then
+  SRC=/opt/finnos
+  echo "payload found in the live root: $SRC"
 else
-  umount "$ISO_MNT" 2>/dev/null || true
-  echo "no install disc; falling back to $HOST"
+  if [ ! -d "$ISO_MNT" ]; then mkdir -p "$ISO_MNT"; fi
+  for dev in /dev/sr0 /dev/sr1 /dev/sr2 /dev/sda2 /dev/sdb2; do
+    [ -b "$dev" ] || continue
+    if blkid "$dev" 2>/dev/null | grep -q 'LABEL="FINNOS"'; then
+      mount "$dev" "$ISO_MNT" && break
+    fi
+  done
+  if mountpoint -q "$ISO_MNT" && [ -f "$ISO_MNT/vm/finn-chroot.sh" ]; then
+    SRC="$ISO_MNT"
+    echo "install disc found on $ISO_MNT"
+  else
+    umount "$ISO_MNT" 2>/dev/null || true
+    echo "no install disc; falling back to $HOST"
+  fi
 fi
 post
 

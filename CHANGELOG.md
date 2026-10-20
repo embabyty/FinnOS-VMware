@@ -3,10 +3,14 @@
 ## Unreleased
 
 - Dev VM workflow moved from Parallels Desktop to VMware Workstation.
-- Added `vm/build-iso.sh` to produce a FinnOS install ISO for use as a
-  VMware CD-ROM, removing the host HTTP server from the install path.
-  The installer now finds that disc by its `FINNOS` label and takes the
-  whole payload from it; the host server is only a fallback.
+- Added `vm/build-iso.sh`, which remasters the Arch Linux ISO into a
+  bootable FinnOS install disc: the live root carries the tree at
+  `/opt/finnos`, and the boot images and label are kept, so it boots
+  under UEFI (VMware) and BIOS. The installer takes the payload from the
+  live root; a data disc labelled `FINNOS` and the host HTTP server are
+  fallbacks.
+- Added `vm/test-boot.sh`, which boots the disc under QEMU and waits for
+  a login prompt, and the ISO workflow now runs it before uploading.
 
 The shape of this file is the shape of the project: the system is small,
 and the changes to it are worth reading.

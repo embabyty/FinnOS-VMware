@@ -53,44 +53,55 @@ ssh finn@<guest-ip> '
 
 ## Installing a fresh VM
 
-The repository is supplied to the guest as an install disc, so no host
-HTTP server is needed. The VM has two CD-ROMs: the stock Arch Linux
-installer, and the FinnOS disc that carries the tree, the assets and the
-installer scripts.
+The FinnOS ISO is bootable: it is the Arch live environment with the
+FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
 
-1. Build the FinnOS ISO on the host or any Linux machine:
+1. Download the Arch Linux ISO the disc is remastered from:
+
+   ```sh
+   curl -Lo .cache/archlinux-x86_64.iso \
+     https://geo.mirror.pkgbuild.com/iso/latest/archlinux-x86_64.iso
+   ```
+
+2. Build the FinnOS ISO on the host or any Linux machine:
 
    ```sh
    vm/build-iso.sh
    ```
 
-   The disc is labelled `FINNOS`, which is how the installer finds it.
+   It needs `xorriso`, `unsquashfs` and `mksquashfs`. The boot images and
+   the volume label are copied from the Arch ISO, so the result boots
+   under UEFI (VMware) and BIOS.
 
-2. Create the VMware VM, with both discs attached:
+3. Check that it boots, if you have QEMU:
+
+   ```sh
+   vm/test-boot.sh finnos.iso
+   ```
+
+   This boots the disc and waits for the guest to reach a login prompt.
+
+4. Create the VMware VM:
 
    ```sh
    vm/create-dev-vm.sh
    ```
 
-   The Arch installer ISO is expected in `~/Downloads`; pass a path as the
-   third argument to override it.
-
-3. Boot the VM, log in on the installer, and run the installer:
+5. Boot the VM and run the installer:
 
    ```sh
-   mkdir -p /finnos-iso
-   mount /dev/sr1 /finnos-iso        # the disc labelled FINNOS
-   bash /finnos-iso/vm/finn-install.sh
+   finn-install
    ```
 
-   `vm/finn-install.sh` finds the disc itself, partitions, formats,
-   pacstraps and runs `vm/finn-chroot.sh`, which configures the machine,
-   installs the fonts and the payload, and sets up the bootloader.
+   `vm/finn-install.sh` takes the payload from `/opt/finnos` in the live
+   root, partitions, formats, pacstraps and runs `vm/finn-chroot.sh`,
+   which configures the machine, installs the fonts and the payload, and
+   sets up the bootloader.
 
-   If no disc is attached the installer falls back to the host HTTP
-   server, which is how the old workflow worked.
+   A separate data disc labelled `FINNOS` still works, and if there is
+   no disc the installer falls back to the host HTTP server.
 
-4. Build the compositor on the machine and install it:
+6. Build the compositor on the machine and install it:
 
    ```sh
    cd /opt/finnos && make && sudo make install
@@ -122,4 +133,5 @@ Every control-plane call is audited with the peer uid.
 ## Making one
 
 `vm/create-dev-vm.sh` creates an empty VMware VM with the right shape
-for the target. Both discs are attached by the script.
+for the target. The FinnOS disc is attached by the script; pass an Arch
+ISO as the third argument for the two-disc fallback.

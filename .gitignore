@@ -8,6 +8,11 @@
 /src/tools/vgtest
 /src/tools/dockprev
 
+# The base image and the discs built from it. Both are produced, not
+# stored: vm/build-iso.sh writes finnos.iso from a downloaded Arch ISO.
+*.iso
+.cache/
+
 # Captures. The compositor writes PPM frames while it is being worked on;
 # they are artefacts of a session, not part of the OS.
 *.ppm

@@ -1,30 +1,43 @@
 #!/bin/bash
-# Build an ISO image of the FinnOS tree for use as a VMware CD-ROM.
+# Build the bootable FinnOS install ISO.
 #
-#   vm/build-iso.sh [out.iso]
+#   ARCH_ISO=/path/to/archlinux-x86_64.iso vm/build-iso.sh [out.iso]
 #
-# The resulting ISO is the install disc: it carries the repository, the
-# installer scripts and the assets, so the guest can install FinnOS
-# without a host HTTP server. Boot the VM from an Arch Linux installer
-# ISO, attach this disc as the second CD-ROM, and run the installer.
+# The Arch Linux ISO is the base: it carries the kernel, the initramfs and
+# the live environment the installer runs in. This script puts the FinnOS
+# tree into that live root at /opt/finnos, then writes the disc back with
+# the same boot images and the same label, so the result boots under UEFI
+# (which is what VMware uses) and under BIOS.
 #
-# The disc is labelled FINNOS, which is how the installer finds it.
+# The base image is not stored in the tree: download it from
+# https://archlinux.org/download/ and pass it in ARCH_ISO, or put it at
+# .cache/archlinux-x86_64.iso.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/finnos.iso}"
+BASE="${ARCH_ISO:-$ROOT/.cache/archlinux-x86_64.iso}"
 
-if ! command -v xorriso >/dev/null 2>&1 && ! command -v mkisofs >/dev/null 2>&1; then
-  echo "error: need xorriso or mkisofs to build the ISO" >&2
-  exit 1
-fi
+die() { echo "error: $*" >&2; exit 1; }
 
-# The tree is staged first, so that what lands on the disc is exactly the
-# sources and the assets: no build output, no .git, no binaries.
-STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+for tool in xorriso unsquashfs mksquashfs sha512sum tar; do
+  command -v "$tool" >/dev/null 2>&1 || die "need $tool (xorriso, squashfs-tools)"
+done
+
+[ -f "$BASE" ] || die "base image not found: $BASE
+  download https://archlinux.org/download/ and set ARCH_ISO"
+[ "$(cd "$(dirname "$BASE")" && pwd)/$(basename "$BASE")" != \
+  "$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")" ] || \
+  die "the output would overwrite the base image"
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+echo "==> staging the payload"
+mkdir -p "$WORK/payload"
 tar -C "$ROOT" -cf - \
     --exclude='.git' \
+    --exclude='.cache' \
     --exclude='*.o' \
     --exclude='*.a' \
     --exclude='*.iso' \
@@ -33,12 +46,55 @@ tar -C "$ROOT" -cf - \
     --exclude='src/control/finnctl' \
     --exclude='src/tools/vgtest' \
     --exclude='src/tools/dockprev' \
-    . | tar -C "$STAGE" -xf -
+    . | tar -C "$WORK/payload" -xf -
 
-if command -v xorriso >/dev/null 2>&1; then
-  xorriso -as mkisofs -r -J -V 'FINNOS' -o "$OUT" "$STAGE"
-else
-  mkisofs -r -J -V 'FINNOS' -o "$OUT" "$STAGE"
-fi
+echo "==> finding the live root on $BASE"
+SFS=""
+for p in /arch/x86_64/airootfs.sfs /arch/boot/x86_64/airootfs.sfs /arch/airootfs.sfs; do
+  if xorriso -osirrox on -indev "$BASE" -extract "$p" "$WORK/airootfs.sfs" 2>/dev/null; then
+    SFS="$p"
+    break
+  fi
+done
+[ -n "$SFS" ] || die "no airootfs.sfs on the base image; is it an Arch Linux ISO?"
 
+echo "==> unpacking $SFS"
+unsquashfs -q -d "$WORK/root" "$WORK/airootfs.sfs" >/dev/null
+
+echo "==> adding FinnOS to the live root"
+mkdir -p "$WORK/root/opt/finnos"
+cp -a "$WORK/payload/." "$WORK/root/opt/finnos/"
+
+mkdir -p "$WORK/root/usr/local/bin"
+cat > "$WORK/root/usr/local/bin/finn-install" <<'EOF'
+#!/bin/bash
+# Install FinnOS from this disc onto /dev/sda.
+exec /opt/finnos/vm/finn-install.sh "$@"
+EOF
+chmod 755 "$WORK/root/usr/local/bin/finn-install"
+
+mkdir -p "$WORK/root/etc"
+cat >> "$WORK/root/etc/issue" <<'EOF'
+
+FinnOS install disc. Run "finn-install" to install onto /dev/sda.
+EOF
+
+echo "==> repacking the live root"
+mksquashfs "$WORK/root" "$WORK/airootfs.sfs" -noappend -comp zstd -all-root \
+    -no-progress >/dev/null
+(cd "$WORK" && sha512sum airootfs.sfs > airootfs.sha512)
+
+echo "==> writing $OUT"
+rm -f "$OUT"
+SFS_DIR="${SFS%/*}"
+xorriso -indev "$BASE" -outdev "$OUT" \
+    -map "$WORK/airootfs.sfs" "$SFS" \
+    -map "$WORK/airootfs.sha512" "$SFS_DIR/airootfs.sha512" \
+    -boot_image any replay -commit
+
+echo
+echo "==> boot images on the result"
+xorriso -indev "$OUT" -report_el_torito plain 2>/dev/null | sed 's/^/    /'
+echo
 echo "ISO written to $OUT"
+echo "Boot it in VMware, or test it here: vm/test-boot.sh $OUT"
