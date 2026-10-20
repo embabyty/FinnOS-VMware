@@ -84,6 +84,17 @@ FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
 
    This boots the disc and waits for the guest to reach a login prompt.
 
+   To see the menu itself rather than the kernel's output, take a frame
+   of the console:
+
+   ```sh
+   vm/menu-shot.sh finnos.iso /tmp/menu
+   ```
+
+   It starts QEMU with the display off and asks the monitor for a picture
+   at a few moments, so the frames land in `/tmp/menu`; open the one that
+   shows the menu.
+
 4. Create the VMware VM:
 
    ```sh
