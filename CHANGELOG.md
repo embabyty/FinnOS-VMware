@@ -16,6 +16,14 @@
   parameters the base image ships.
 - Added `vm/test-boot.sh`, which boots the disc under QEMU and waits for
   a login prompt, and the ISO workflow now runs it before uploading.
+- The installer can be run from the disc again. The payload scripts were
+  reaching the live root without their executable bit, so `finn-install`
+  stopped with "Permission denied"; a file that starts with a shebang is
+  now marked executable when the tree goes onto the disc, and the workflow
+  checks that the payload can be run.
+- Added `vm/menu-shot.sh`, which starts the disc under QEMU with the
+  display off and asks the monitor for a frame of the boot menu, so the
+  menu can be looked at rather than assumed.
 
 The shape of this file is the shape of the project: the system is small,
 and the changes to it are worth reading.
