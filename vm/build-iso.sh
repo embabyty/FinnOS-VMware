@@ -108,16 +108,19 @@ EOF
 chmod 644 "$PROFILE"
 
 echo "==> adding the FinnOS boot entries"
-# BIOS boots through syslinux and UEFI through systemd-boot; both menus
-# still say "Arch Linux" unless they are rewritten. The kernel, initrd and
-# the archiso parameters are read out of the shipped entry rather than
-# guessed, because they carry the release's kernel path and volume label.
-# The layout has moved between releases, so the files are looked for in a
-# few known places instead of one.
-# The top-level syslinux.cfg on an Arch ISO is only a dispatcher
-# (whichsys.c32 picks pxe, sys or iso); the entries people see are in a
-# file it includes. Rather than guess which, take the whole directory and
-# use the first config that actually has a LINUX line.
+# BIOS boots through syslinux and UEFI through systemd-boot, and both menus
+# name the distribution they came from. It is an Arch live environment
+# underneath, but this disc installs FinnOS, so the menus have to say so:
+# the shipped fragments are relabelled, and an entry that hands over to
+# the installer is made the default. Kernel, initrd and the archiso
+# parameters are read out of the shipped entry rather than guessed,
+# because they carry the release's kernel path and volume label. The
+# layout has moved between releases, so the files are looked for in a few
+# known places instead of one.
+#
+# The top-level syslinux.cfg is only a dispatcher (whichsys.c32 picks pxe,
+# sys or iso); the entries people see are in a file it includes. Take the
+# whole directory and use the config that actually has a LINUX line.
 BIOS_DIR=""
 for p in /boot/syslinux /syslinux /isolinux; do
   rm -rf "$WORK/syslinux"
@@ -131,6 +134,12 @@ SYSCFG=""
 if [ -n "$BIOS_DIR" ]; then
   echo "    BIOS menu files in $BIOS_DIR:"
   ls -1 "$WORK/syslinux" 2>/dev/null | sed 's/^/      /' || true
+  # The stock fragments name the distribution in their titles, labels and
+  # help text; all of it is presentation, none of it is a path or a
+  # parameter, so one replacement covers it. The background image is the
+  # other distribution's mark, so it goes rather than being painted over.
+  sed -i 's/Arch Linux/FinnOS/g' "$WORK"/syslinux/*.cfg
+  sed -i '/^[[:space:]]*MENU BACKGROUND/d' "$WORK"/syslinux/*.cfg
   # Several configs carry LINUX lines. The PXE and NBD ones boot from a
   # server; the disc's own entry is the one with archisobasedir and no
   # server parameter.
@@ -165,8 +174,7 @@ if [ -n "$SYSCFG" ]; then
       echo "DEFAULT finnos"
       echo "PROMPT 0"
       echo "TIMEOUT 100"
-      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$SYSCFG" |
-        sed -E 's/^[[:space:]]*MENU TITLE.*/MENU TITLE FinnOS/'
+      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$SYSCFG"
       echo
       echo "LABEL finnos"
       echo "  MENU LABEL Install FinnOS"
@@ -180,7 +188,7 @@ if [ -n "$SYSCFG" ]; then
       if [ -n "$INITRD_LINE" ]; then echo "  INITRD $INITRD_LINE"; fi
       echo "  APPEND $APPEND_LINE"
     } > "$WORK/syslinux.cfg.new"
-    MAPS+=(-map "$WORK/syslinux.cfg.new" "$BIOS_DIR/$(basename "$SYSCFG")")
+    mv "$WORK/syslinux.cfg.new" "$SYSCFG"
   else
     echo "warning: could not read the kernel and append lines from $SYSCFG" >&2
   fi
@@ -188,25 +196,27 @@ else
   echo "warning: no syslinux menu found; the BIOS menu stays Arch's" >&2
 fi
 
-# The menu title lives in one of the included fragments, not necessarily
-# in the file with the entries.
-for f in "$WORK"/syslinux/*.cfg; do
-  [ -f "$f" ] || continue
-  if grep -qE '^[[:space:]]*MENU TITLE' "$f"; then
-    sed -i -E 's/^[[:space:]]*MENU TITLE.*/MENU TITLE FinnOS/' "$f"
+# Whatever the fragment split is, the rewritten files are the ones to put
+# back; the binaries next to them are left exactly as the base ships them.
+if [ -n "$BIOS_DIR" ]; then
+  for f in "$WORK"/syslinux/*.cfg; do
+    [ -f "$f" ] || continue
     MAPS+=(-map "$f" "$BIOS_DIR/$(basename "$f")")
-  fi
-done
+  done
+fi
 
 if [ -n "$LOADER_DIR" ] && [ -d "$WORK/loader/entries" ]; then
   echo "    UEFI entries in $LOADER_DIR/entries:"
   ls -1 "$WORK/loader/entries" | sed 's/^/      /' || true
+  sed -i 's/Arch Linux/FinnOS/g' "$WORK"/loader/entries/*.conf
   ENTRY="$(ls "$WORK/loader/entries"/*.conf 2>/dev/null | head -1 || true)"
   if [ -n "$ENTRY" ]; then
-    cp "$ENTRY" "$WORK/loader/entries/finnos.conf"
-    sed -i -E 's/^title.*/title   Install FinnOS/' "$WORK/loader/entries/finnos.conf"
-    sed -i -E '/^options/ s/$/ finn.install/' "$WORK/loader/entries/finnos.conf"
-    printf 'default finnos.conf\ntimeout 10\n' > "$WORK/loader/loader.conf"
+    # A numeric prefix sorts it to the top of the menu; the default is
+    # named explicitly, but the order is what the eye reads.
+    cp "$ENTRY" "$WORK/loader/entries/00-finnos.conf"
+    sed -i -E 's/^title.*/title   Install FinnOS/' "$WORK/loader/entries/00-finnos.conf"
+    sed -i -E '/^options/ s/$/ finn.install/' "$WORK/loader/entries/00-finnos.conf"
+    printf 'default 00-finnos.conf\ntimeout 10\n' > "$WORK/loader/loader.conf"
     MAPS+=(-map "$WORK/loader/loader.conf" "$LOADER_DIR/loader.conf")
     for f in "$WORK/loader/entries"/*.conf; do
       MAPS+=(-map "$f" "$LOADER_DIR/entries/$(basename "$f")")

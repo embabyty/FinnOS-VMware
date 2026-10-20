@@ -48,11 +48,13 @@ jobs:
           grep -rE 'MENU TITLE FinnOS' /tmp/syslinux
           grep -E 'DEFAULT finnos' /tmp/syslinux/archiso_sys-linux.cfg
           grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux/archiso_sys-linux.cfg
+          ! grep -rE 'Arch Linux' /tmp/syslinux/*.cfg
           xorriso -osirrox on -indev finnos.iso \
-            -extract /loader/entries/finnos.conf /tmp/finnos.conf
-          cat /tmp/finnos.conf
-          grep -E 'title +Install FinnOS' /tmp/finnos.conf
-          grep -E 'finn\.install' /tmp/finnos.conf
+            -extract /loader/entries /tmp/entries
+          cat /tmp/entries/00-finnos.conf
+          grep -E 'title +Install FinnOS' /tmp/entries/00-finnos.conf
+          grep -E 'finn\.install' /tmp/entries/00-finnos.conf
+          ! grep -rE 'Arch Linux' /tmp/entries
       - name: boot it
         run: vm/test-boot.sh finnos.iso
       - name: upload the ISO
