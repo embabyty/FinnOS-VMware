@@ -44,11 +44,10 @@ jobs:
       - name: the menus say FinnOS
         run: |
           xorriso -osirrox on -indev finnos.iso \
-            -extract /boot/syslinux/syslinux.cfg /tmp/syslinux.cfg
-          cat /tmp/syslinux.cfg
-          grep -E 'MENU TITLE FinnOS' /tmp/syslinux.cfg
-          grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux.cfg
-          grep -E 'DEFAULT finnos' /tmp/syslinux.cfg
+            -extract /boot/syslinux /tmp/syslinux
+          grep -rE 'MENU TITLE FinnOS' /tmp/syslinux
+          grep -E 'DEFAULT finnos' /tmp/syslinux/archiso_sys-linux.cfg
+          grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux/archiso_sys-linux.cfg
           xorriso -osirrox on -indev finnos.iso \
             -extract /loader/entries/finnos.conf /tmp/finnos.conf
           cat /tmp/finnos.conf

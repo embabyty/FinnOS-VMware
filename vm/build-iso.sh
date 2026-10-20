@@ -131,12 +131,16 @@ SYSCFG=""
 if [ -n "$BIOS_DIR" ]; then
   echo "    BIOS menu files in $BIOS_DIR:"
   ls -1 "$WORK/syslinux" 2>/dev/null | sed 's/^/      /' || true
+  # Several configs carry LINUX lines. The PXE and NBD ones boot from a
+  # server; the disc's own entry is the one with archisobasedir and no
+  # server parameter.
   for f in "$WORK"/syslinux/*.cfg; do
     [ -f "$f" ] || continue
-    if grep -qE '^[[:space:]]*LINUX[[:space:]]' "$f"; then
-      SYSCFG="$f"
-      break
-    fi
+    grep -qE '^[[:space:]]*LINUX[[:space:]]' "$f" || continue
+    grep -q 'archisobasedir=arch' "$f" || continue
+    if grep -qE 'archiso_(nbd|nfs)_srv|archiso_pxe' "$f"; then continue; fi
+    SYSCFG="$f"
+    break
   done
 fi
 
@@ -183,6 +187,16 @@ if [ -n "$SYSCFG" ]; then
 else
   echo "warning: no syslinux menu found; the BIOS menu stays Arch's" >&2
 fi
+
+# The menu title lives in one of the included fragments, not necessarily
+# in the file with the entries.
+for f in "$WORK"/syslinux/*.cfg; do
+  [ -f "$f" ] || continue
+  if grep -qE '^[[:space:]]*MENU TITLE' "$f"; then
+    sed -i -E 's/^[[:space:]]*MENU TITLE.*/MENU TITLE FinnOS/' "$f"
+    MAPS+=(-map "$f" "$BIOS_DIR/$(basename "$f")")
+  fi
+done
 
 if [ -n "$LOADER_DIR" ] && [ -d "$WORK/loader/entries" ]; then
   echo "    UEFI entries in $LOADER_DIR/entries:"
