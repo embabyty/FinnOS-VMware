@@ -89,6 +89,77 @@ cat >> "$WORK/root/etc/issue" <<'EOF'
 FinnOS install disc. Run "finn-install" to install onto /dev/sda.
 EOF
 
+# The default boot entry passes finn.install on the kernel command line.
+# When it is there, the live shell hands over to the installer once it is
+# up, after a moment to back out.
+PROFILE="$WORK/root/root/.bash_profile"
+touch "$PROFILE"
+cat >> "$PROFILE" <<'EOF'
+
+# Booted with the "Install FinnOS" entry of the install disc.
+if grep -qw finn.install /proc/cmdline 2>/dev/null; then
+  echo
+  echo "FinnOS: starting the installer in 10 seconds."
+  echo "Press Ctrl-C to stay in the live shell."
+  sleep 10
+  /usr/local/bin/finn-install
+fi
+EOF
+chmod 644 "$PROFILE"
+
+echo "==> adding the FinnOS boot entries"
+# BIOS boots through syslinux and UEFI through systemd-boot; both menus
+# still say "Arch Linux" unless they are rewritten. The kernel, initrd and
+# the archiso parameters are read out of the shipped entry rather than
+# guessed, because they carry the release's kernel path and volume label.
+xorriso -osirrox on -indev "$BASE" \
+    -extract /boot/syslinux/syslinux.cfg "$WORK/syslinux.cfg" 2>/dev/null || true
+xorriso -osirrox on -indev "$BASE" \
+    -extract /loader/loader.conf "$WORK/loader.conf" 2>/dev/null || true
+xorriso -osirrox on -indev "$BASE" \
+    -extract /loader/entries "$WORK/entries" 2>/dev/null || true
+
+MAPS=()
+if [ -f "$WORK/syslinux.cfg" ]; then
+  LINUX_LINE="$(sed -n 's/^[[:space:]]*LINUX[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
+  INITRD_LINE="$(sed -n 's/^[[:space:]]*INITRD[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
+  APPEND_LINE="$(sed -n 's/^[[:space:]]*APPEND[[:space:]]*//p' "$WORK/syslinux.cfg" | head -1)"
+  if [ -n "$LINUX_LINE" ] && [ -n "$APPEND_LINE" ]; then
+    {
+      echo "DEFAULT finnos"
+      echo "PROMPT 0"
+      echo "TIMEOUT 100"
+      grep -viE '^[[:space:]]*(DEFAULT|PROMPT|TIMEOUT)[[:space:]]' "$WORK/syslinux.cfg" |
+        sed 's/^MENU TITLE.*/MENU TITLE FinnOS/'
+      echo
+      echo "LABEL finnos"
+      echo "  MENU LABEL Install FinnOS"
+      echo "  LINUX $LINUX_LINE"
+      if [ -n "$INITRD_LINE" ]; then echo "  INITRD $INITRD_LINE"; fi
+      echo "  APPEND $APPEND_LINE finn.install"
+      echo
+      echo "LABEL finnos-shell"
+      echo "  MENU LABEL FinnOS live shell"
+      echo "  LINUX $LINUX_LINE"
+      if [ -n "$INITRD_LINE" ]; then echo "  INITRD $INITRD_LINE"; fi
+      echo "  APPEND $APPEND_LINE"
+    } > "$WORK/syslinux.cfg.new"
+    MAPS+=(-map "$WORK/syslinux.cfg.new" /boot/syslinux/syslinux.cfg)
+  fi
+fi
+
+ENTRY="$(ls "$WORK/entries"/*.conf 2>/dev/null | head -1 || true)"
+if [ -n "$ENTRY" ]; then
+  cp "$ENTRY" "$WORK/entries/finnos.conf"
+  sed -i 's/^title.*/title   Install FinnOS/' "$WORK/entries/finnos.conf"
+  sed -i '/^options/ s/$/ finn.install/' "$WORK/entries/finnos.conf"
+  printf 'default finnos.conf\ntimeout 10\n' > "$WORK/loader.conf"
+  MAPS+=(-map "$WORK/loader.conf" /loader/loader.conf)
+  for f in "$WORK/entries"/*.conf; do
+    MAPS+=(-map "$f" "/loader/entries/$(basename "$f")")
+  done
+fi
+
 echo "==> repacking the live root"
 mksquashfs "$WORK/root" "$WORK/airootfs.sfs" -noappend -comp zstd -all-root \
     "${XATTR[@]}" -no-progress >/dev/null
@@ -100,6 +171,7 @@ SFS_DIR="${SFS%/*}"
 xorriso -indev "$BASE" -outdev "$OUT" \
     -map "$WORK/airootfs.sfs" "$SFS" \
     -map "$WORK/airootfs.sha512" "$SFS_DIR/airootfs.sha512" \
+    ${MAPS[@]+"${MAPS[@]}"} \
     -boot_image any replay -commit
 
 echo

@@ -9,6 +9,11 @@
   under UEFI (VMware) and BIOS. The installer takes the payload from the
   live root; a data disc labelled `FINNOS` and the host HTTP server are
   fallbacks.
+- The disc's boot menus no longer say Arch Linux. The default entry on
+  both BIOS (syslinux) and UEFI (systemd-boot) is **Install FinnOS**,
+  which hands over to the installer; **FinnOS live shell** stays in the
+  live environment. The entries reuse the kernel, initrd and archiso
+  parameters the base image ships.
 - Added `vm/test-boot.sh`, which boots the disc under QEMU and waits for
   a login prompt, and the ISO workflow now runs it before uploading.
 

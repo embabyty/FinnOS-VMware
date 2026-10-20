@@ -41,6 +41,17 @@ jobs:
           grep -E 'opt/finnos/vm/finn-install\.sh$' /tmp/live-root.txt
           grep -E 'opt/finnos/vm/finn-chroot\.sh$' /tmp/live-root.txt
           grep -E 'usr/local/bin/finn-install$' /tmp/live-root.txt
+      - name: the menus say FinnOS
+        run: |
+          xorriso -osirrox on -indev finnos.iso \
+            -extract /boot/syslinux/syslinux.cfg /tmp/syslinux.cfg
+          xorriso -osirrox on -indev finnos.iso \
+            -extract /loader/entries/finnos.conf /tmp/finnos.conf
+          grep -E '^MENU TITLE FinnOS' /tmp/syslinux.cfg
+          grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux.cfg
+          grep -E 'DEFAULT finnos' /tmp/syslinux.cfg
+          grep -E '^title +Install FinnOS' /tmp/finnos.conf
+          grep -E 'finn\.install' /tmp/finnos.conf
       - name: boot it
         run: vm/test-boot.sh finnos.iso
       - name: upload the ISO

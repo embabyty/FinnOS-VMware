@@ -71,7 +71,10 @@ FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
 
    It needs `xorriso`, `unsquashfs` and `mksquashfs`. The boot images and
    the volume label are copied from the Arch ISO, so the result boots
-   under UEFI (VMware) and BIOS.
+   under UEFI (VMware) and BIOS. Both boot menus are rewritten: the
+   default entry is **Install FinnOS**, which boots the live environment
+   and hands over to the installer, and **FinnOS live shell** is the way
+   in without installing.
 
 3. Check that it boots, if you have QEMU:
 
@@ -87,11 +90,9 @@ FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
    vm/create-dev-vm.sh
    ```
 
-5. Boot the VM and run the installer:
-
-   ```sh
-   finn-install
-   ```
+5. Boot the VM. The default entry, **Install FinnOS**, starts the
+   installer from the live shell after ten seconds; **FinnOS live shell**
+   leaves you at the prompt, where `finn-install` does the same thing.
 
    `vm/finn-install.sh` takes the payload from `/opt/finnos` in the live
    root, partitions, formats, pacstraps and runs `vm/finn-chroot.sh`,
