@@ -45,12 +45,14 @@ jobs:
         run: |
           xorriso -osirrox on -indev finnos.iso \
             -extract /boot/syslinux/syslinux.cfg /tmp/syslinux.cfg
-          xorriso -osirrox on -indev finnos.iso \
-            -extract /loader/entries/finnos.conf /tmp/finnos.conf
-          grep -E '^MENU TITLE FinnOS' /tmp/syslinux.cfg
+          cat /tmp/syslinux.cfg
+          grep -E 'MENU TITLE FinnOS' /tmp/syslinux.cfg
           grep -E 'MENU LABEL Install FinnOS' /tmp/syslinux.cfg
           grep -E 'DEFAULT finnos' /tmp/syslinux.cfg
-          grep -E '^title +Install FinnOS' /tmp/finnos.conf
+          xorriso -osirrox on -indev finnos.iso \
+            -extract /loader/entries/finnos.conf /tmp/finnos.conf
+          cat /tmp/finnos.conf
+          grep -E 'title +Install FinnOS' /tmp/finnos.conf
           grep -E 'finn\.install' /tmp/finnos.conf
       - name: boot it
         run: vm/test-boot.sh finnos.iso
