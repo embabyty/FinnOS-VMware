@@ -25,7 +25,11 @@ jobs:
             https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt
           (cd .cache && grep 'archlinux-x86_64.iso' ../sha256sums.txt | sha256sum -c -)
       - name: build the ISO
-        run: vm/build-iso.sh finnos.iso
+        # Root so the file capabilities in the live root survive the
+        # repack; the disc itself stays readable by the runner.
+        run: |
+          sudo vm/build-iso.sh finnos.iso
+          sudo chown "$(id -u):$(id -g)" finnos.iso
       - name: the disc is bootable
         run: |
           xorriso -indev finnos.iso -report_el_torito plain

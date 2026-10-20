@@ -31,7 +31,17 @@ done
   die "the output would overwrite the base image"
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+trap 'chmod -R u+rwX "$WORK" 2>/dev/null || true; rm -rf "$WORK" 2>/dev/null || true' EXIT
+
+# The live root has file capabilities on ping and newuidmap. Only root may
+# write those xattrs; without them the tools in the live environment simply
+# have no capabilities, which is acceptable but worth saying out loud.
+XATTR=(-no-xattrs)
+if [ "$(id -u)" = 0 ]; then
+  XATTR=()
+else
+  echo "==> not root: file capabilities are dropped from the live root"
+fi
 
 echo "==> staging the payload"
 mkdir -p "$WORK/payload"
@@ -59,7 +69,7 @@ done
 [ -n "$SFS" ] || die "no airootfs.sfs on the base image; is it an Arch Linux ISO?"
 
 echo "==> unpacking $SFS"
-unsquashfs -q -d "$WORK/root" "$WORK/airootfs.sfs" >/dev/null
+unsquashfs -q "${XATTR[@]}" -d "$WORK/root" "$WORK/airootfs.sfs" >/dev/null
 
 echo "==> adding FinnOS to the live root"
 mkdir -p "$WORK/root/opt/finnos"
@@ -81,7 +91,7 @@ EOF
 
 echo "==> repacking the live root"
 mksquashfs "$WORK/root" "$WORK/airootfs.sfs" -noappend -comp zstd -all-root \
-    -no-progress >/dev/null
+    "${XATTR[@]}" -no-progress >/dev/null
 (cd "$WORK" && sha512sum airootfs.sfs > airootfs.sha512)
 
 echo "==> writing $OUT"
