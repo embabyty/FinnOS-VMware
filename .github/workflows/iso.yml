@@ -33,6 +33,14 @@ jobs:
       - name: the disc is bootable
         run: |
           xorriso -indev finnos.iso -report_el_torito plain
+      - name: the payload is in the live root
+        run: |
+          xorriso -osirrox on -indev finnos.iso \
+            -extract /arch/x86_64/airootfs.sfs /tmp/airootfs.sfs
+          unsquashfs -l /tmp/airootfs.sfs > /tmp/live-root.txt
+          grep -E 'opt/finnos/vm/finn-install\.sh$' /tmp/live-root.txt
+          grep -E 'opt/finnos/vm/finn-chroot\.sh$' /tmp/live-root.txt
+          grep -E 'usr/local/bin/finn-install$' /tmp/live-root.txt
       - name: boot it
         run: vm/test-boot.sh finnos.iso
       - name: upload the ISO
