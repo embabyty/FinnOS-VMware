@@ -37,10 +37,15 @@ jobs:
         run: |
           xorriso -osirrox on -indev finnos.iso \
             -extract /arch/x86_64/airootfs.sfs /tmp/airootfs.sfs
-          unsquashfs -l /tmp/airootfs.sfs > /tmp/live-root.txt
-          grep -E '^-rwx.*opt/finnos/vm/finn-install\.sh$' /tmp/live-root.txt
-          grep -E '^-rwx.*opt/finnos/vm/finn-chroot\.sh$' /tmp/live-root.txt
-          grep -E '^-rwx.*usr/local/bin/finn-install$' /tmp/live-root.txt
+          rm -rf /tmp/live
+          unsquashfs -q -d /tmp/live /tmp/airootfs.sfs \
+            opt/finnos/vm/finn-install.sh \
+            opt/finnos/vm/finn-chroot.sh \
+            usr/local/bin/finn-install
+          # The installer is run, not read, so the mode is part of it.
+          test -x /tmp/live/opt/finnos/vm/finn-install.sh
+          test -x /tmp/live/opt/finnos/vm/finn-chroot.sh
+          test -x /tmp/live/usr/local/bin/finn-install
       - name: the menus say FinnOS
         run: |
           xorriso -osirrox on -indev finnos.iso \

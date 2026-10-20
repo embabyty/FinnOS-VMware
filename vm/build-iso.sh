@@ -84,6 +84,8 @@ while IFS= read -r -d '' f; do
     chmod 755 "$f"
   fi
 done < <(find "$WORK/root/opt/finnos" -type f -print0)
+ls -l "$WORK/root/opt/finnos/vm/finn-install.sh" \
+      "$WORK/root/opt/finnos/vm/finn-chroot.sh" 2>/dev/null | sed 's/^/    /' || true
 
 mkdir -p "$WORK/root/usr/local/bin"
 cat > "$WORK/root/usr/local/bin/finn-install" <<'EOF'
