@@ -2,8 +2,10 @@
 # FinnOS chroot config - runs inside /mnt via arch-chroot.
 #
 # It lays down the base image: the user, the services, the fonts, the
-# assets and the sources. It does not build the compositor - that happens
-# on the machine itself, with the toolchain that is now installed.
+# assets and the sources, and then builds the compositor and the control
+# plane from those sources. The build happens here, in the chroot, because
+# the machine the disc is installed on is the one with the DRM headers and
+# the toolchain.
 #
 # The payload comes from /root/finnos-src, which the installer copied off
 # the install disc. If that is not there, it is fetched from the host.
@@ -97,6 +99,32 @@ else
     echo "SOURCES=missing"
   fi
 fi
+post
+
+echo "=== build the shell and the control plane ==="
+# The disc carries the sources; the machine they land on is the one that
+# has the DRM headers and the toolchain, so the build happens here. Without
+# it the machine would boot with no compositor to start.
+if [ -d /opt/finnos ]; then
+  cd /opt/finnos
+  if make -j"$(nproc)" >/tmp/finn-build.log 2>&1; then
+    if make install >>/tmp/finn-build.log 2>&1; then
+      echo "SHELL=built"
+    else
+      echo "WARN: the install failed; see /tmp/finn-build.log"
+      tail -20 /tmp/finn-build.log
+      echo "SHELL=notinstalled"
+    fi
+  else
+    echo "WARN: the build failed; see /tmp/finn-build.log"
+    tail -20 /tmp/finn-build.log
+    echo "SHELL=notbuilt"
+  fi
+else
+  echo "WARN: no sources to build; the shell will not start"
+  echo "SHELL=nosources"
+fi
+chown -R finn:finn /opt/finnos
 post
 
 echo "=== initramfs + bootloader ==="

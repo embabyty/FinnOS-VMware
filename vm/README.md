@@ -107,15 +107,19 @@ FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
 
    `vm/finn-install.sh` takes the payload from `/opt/finnos` in the live
    root, partitions, formats, pacstraps and runs `vm/finn-chroot.sh`,
-   which configures the machine, installs the fonts and the payload, and
-   sets up the bootloader.
+   which configures the machine, installs the fonts and the payload, sets
+   up the bootloader, and builds the compositor and the control plane
+   from the sources on the disc — the machine the disc is installed on is
+   the one with the DRM headers and the toolchain.
 
    A separate data disc labelled `FINNOS` still works, and if there is
    no disc the installer falls back to the host HTTP server.
 
-6. Build the compositor on the machine and install it:
+6. On a machine that was installed before the installer built the shell,
+   or after a change to the sources, build and install it by hand:
 
    ```sh
+   sudo pacman -S --needed base-devel pkgconf libdrm libwebp freetype2 alsa-lib mesa
    cd /opt/finnos && make && sudo make install
    sudo systemctl restart finn-comp finnd
    ```

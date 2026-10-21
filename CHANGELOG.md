@@ -24,6 +24,11 @@
 - Added `vm/menu-shot.sh`, which starts the disc under QEMU with the
   display off and asks the monitor for a frame of the boot menu, so the
   menu can be looked at rather than assumed.
+- A fresh install now comes up with a shell. The disc carries the sources
+  and the machine they land on has the DRM headers, so the installer
+  brings the toolchain and builds the compositor and the control plane
+  in the chroot; before, the services were enabled but the binaries they
+  started were never built.
 
 The shape of this file is the shape of the project: the system is small,
 and the changes to it are worth reading.

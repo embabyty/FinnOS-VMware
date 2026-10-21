@@ -68,11 +68,16 @@ findmnt -o TARGET,SOURCE /mnt /mnt/boot
 post
 
 echo "===== [5/8] PACSTRAP ====="
+# The toolchain is in the base install, because the chroot builds the
+# compositor: the disc carries the sources, and the machine they land on is
+# the one that can build them. The dev loop builds there too, so removing
+# the compiler again would only mean putting it back.
 yes | pacstrap /mnt base linux linux-firmware \
   systemd sudo openssh networkmanager \
   grub efibootmgr \
   mesa wayland wayland-protocols libdrm libinput seatd \
-  fontconfig ttf-dejavu git python vim nano
+  fontconfig ttf-dejavu git python vim nano \
+  base-devel pkgconf libdrm libwebp freetype2 alsa-lib
 post
 
 echo "===== [6/8] FSTAB ====="
