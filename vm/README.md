@@ -105,6 +105,11 @@ FinnOS tree inside it at `/opt/finnos`. One disc, no host HTTP server.
    installer from the live shell after ten seconds; **FinnOS live shell**
    leaves you at the prompt, where `finn-install` does the same thing.
 
+   When the install is done, power the machine off and boot the disk, not
+   the disc: set `bios.bootOrder = "hdd,cdrom"` or detach the install
+   disc. The disc's default entry is the installer, so a VM that boots
+   the disc again installs over itself without asking.
+
    `vm/finn-install.sh` takes the payload from `/opt/finnos` in the live
    root, partitions, formats, pacstraps and runs `vm/finn-chroot.sh`,
    which configures the machine, installs the fonts and the payload, sets
