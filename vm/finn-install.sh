@@ -7,10 +7,15 @@
 exec > >(tee /tmp/finn-install.log) 2>&1
 set -x
 DISK=/dev/sda
-HOST=http://192.168.44.1:8765
+# The host server is the gateway of the NAT network, and VMware picks that
+# subnet when the VM is made. A hardcoded address is a different network on
+# the next machine, and a POST to it that nobody answers stalls the install
+# at the first stage, before anything has been written. Ask the route
+# instead, and never let the log outlive the install.
+HOST="http://$(ip route show default 2>/dev/null | awk 'NR==1{print $3}'):8765"
 ISO_MNT=/finnos-iso
 SRC=""
-post() { curl -s -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
+post() { curl -s --connect-timeout 2 --max-time 4 -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
 
 echo "===== [0/8] FIND THE PAYLOAD ====="
 # The bootable disc carries the tree in the live root, which is where the
@@ -65,7 +70,12 @@ wipefs -a "$DISK" || true
 # its boot code on a GPT disk; without it a machine that starts with a BIOS
 # has an install it cannot reach, and the firmware is not always willing
 # to boot an EFI disk on its own.
-printf 'label: gpt\n,512M,U\n,+1M,B\n,,L\n' | sfdisk --wipe=always "$DISK"
+#
+# The type is the GUID, not the one-letter alias: sfdisk accepts "U" and
+# "L" everywhere, but not every version knows "B" for a BIOS boot
+# partition, and the one that does not rejects the whole entry.
+printf 'label: gpt\n,512M,U\n,+1M,21686148-6449-6E6F-744E-656564454649\n,,L\n' \
+  | sfdisk --wipe=always "$DISK"
 sync; partprobe "$DISK" 2>/dev/null || true; sleep 3
 lsblk "$DISK"
 post
@@ -123,7 +133,7 @@ if [ -n "$SRC" ]; then
     | tar -C /mnt/root/finnos-src -xf -
   echo "payload taken from the install disc"
 else
-  curl -sLo /mnt/root/finn-chroot.sh "$HOST/vm/finn-chroot.sh"
+  curl -s --connect-timeout 2 --max-time 60 -Lo /mnt/root/finn-chroot.sh "$HOST/vm/finn-chroot.sh"
   echo "payload taken from $HOST"
 fi
 chmod +x /mnt/root/finn-chroot.sh
@@ -136,5 +146,5 @@ arch-chroot /mnt /root/finn-chroot.sh || {
 post
 
 echo "===== [8/8] COMPLETE ====="
-curl -s -X POST --data-binary @/tmp/finn-install.log "$HOST/log" -o /dev/null 2>/dev/null || true
+post
 echo "FINN_INSTALL_COMPLETE"

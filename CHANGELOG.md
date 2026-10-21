@@ -29,6 +29,18 @@
   brings the toolchain and builds the compositor and the control plane
   in the chroot; before, the services were enabled but the binaries they
   started were never built.
+- The installer finds the host HTTP server from the guest's default route
+  instead of a fixed address, and every log POST is bounded. A host that
+  is not there used to leave the first stage waiting on a connection
+  forever; the address VMware assigns is different from machine to
+  machine, so no fixed address can be right.
+- The BIOS boot partition is named by its type GUID in `sfdisk`. Not
+  every version accepts the `B` alias, and the one that does not rejects
+  the entry, which leaves the disk with no root partition and an install
+  that cannot boot.
+- The chroot keeps the result of the shell build in a variable of its
+  own. It was stored in `SHELL`, which holds the calling shell's path, so
+  a successful install ended by reporting that the shell was not built.
 
 The shape of this file is the shape of the project: the system is small,
 and the changes to it are worth reading.

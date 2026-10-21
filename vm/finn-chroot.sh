@@ -10,16 +10,17 @@
 # The payload comes from /root/finnos-src, which the installer copied off
 # the install disc. If that is not there, it is fetched from the host.
 set -x
-HOST=http://192.168.44.1:8765
+# The host server is the gateway of the NAT network; see vm/finn-install.sh.
+HOST="http://$(ip route show default 2>/dev/null | awk 'NR==1{print $3}'):8765"
 SRC=/root/finnos-src
-post() { curl -s -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
+post() { curl -s --connect-timeout 2 --max-time 60 -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true; }
 
 # get <destination> <path-in-the-tree>
 get() {
   if [ -f "$SRC/$2" ]; then
     install -D -m 644 "$SRC/$2" "$1"
   else
-    curl -sLo "$1" "$HOST/$2"
+    curl -s --connect-timeout 2 --max-time 30 -Lo "$1" "$HOST/$2"
   fi
 }
 
@@ -90,7 +91,7 @@ if [ -d "$SRC" ]; then
   chown -R finn:finn /opt/finnos
   echo "SOURCES=installed"
 else
-  if curl -sfLo /tmp/finnos.tar.gz "$HOST/finnos.tar.gz"; then
+  if curl -s --connect-timeout 2 --max-time 300 -fLo /tmp/finnos.tar.gz "$HOST/finnos.tar.gz"; then
     tar -C /opt/finnos -xzf /tmp/finnos.tar.gz
     chown -R finn:finn /opt/finnos
     echo "SOURCES=installed"
@@ -105,25 +106,29 @@ echo "=== build the shell and the control plane ==="
 # The disc carries the sources; the machine they land on is the one that
 # has the DRM headers and the toolchain, so the build happens here. Without
 # it the machine would boot with no compositor to start.
+# The state goes in a variable of its own: SHELL is the calling shell's
+# path in the environment, so a status kept there is overwritten and the
+# install reports a failure over a shell that was built.
+shell_state=nosources
 if [ -d /opt/finnos ]; then
   cd /opt/finnos
   if make -j"$(nproc)" >/tmp/finn-build.log 2>&1; then
     if make install >>/tmp/finn-build.log 2>&1; then
-      echo "SHELL=built"
+      shell_state=built
     else
+      shell_state=notinstalled
       echo "WARN: the install failed; see /tmp/finn-build.log"
       tail -20 /tmp/finn-build.log
-      echo "SHELL=notinstalled"
     fi
   else
+    shell_state=notbuilt
     echo "WARN: the build failed; see /tmp/finn-build.log"
     tail -20 /tmp/finn-build.log
-    echo "SHELL=notbuilt"
   fi
 else
   echo "WARN: no sources to build; the shell will not start"
-  echo "SHELL=nosources"
 fi
+echo "SHELL=$shell_state"
 chown -R finn:finn /opt/finnos
 post
 
@@ -156,11 +161,11 @@ else
 fi
 post
 
-curl -s -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true
+post
 # The bootloader is in place either way, so the machine boots; but a
 # machine without a shell is not a finished install, and the installer has
 # to hear that from here.
-if [ "$SHELL" != "built" ]; then
+if [ "$shell_state" != "built" ]; then
   echo "FINN_CHROOT_FAILED: the shell was not built"
   exit 1
 fi
