@@ -1,4 +1,4 @@
-# FinnOS
+# FinnOS on VMware
 
 An operating system for a small, quiet machine: an i3-class laptop or a
 handheld, a screen, a pointer, a battery.
