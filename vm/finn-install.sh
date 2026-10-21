@@ -60,19 +60,24 @@ echo "===== [2/8] PARTITION $DISK ====="
 umount -R /mnt 2>/dev/null || true
 swapoff -a 2>/dev/null || true
 wipefs -a "$DISK" || true
-printf 'label: gpt\n,512M,U\n,,L\n' | sfdisk --wipe=always "$DISK"
+# Three partitions: an EFI system partition for /boot, a one-megabyte BIOS
+# boot partition, and the root. The BIOS boot partition is where GRUB puts
+# its boot code on a GPT disk; without it a machine that starts with a BIOS
+# has an install it cannot reach, and the firmware is not always willing
+# to boot an EFI disk on its own.
+printf 'label: gpt\n,512M,U\n,+1M,B\n,,L\n' | sfdisk --wipe=always "$DISK"
 sync; partprobe "$DISK" 2>/dev/null || true; sleep 3
 lsblk "$DISK"
 post
 
 echo "===== [3/8] FORMAT ====="
 mkfs.vfat -F32 "${DISK}1"
-mkfs.ext4 -F -L finnos "${DISK}2"
+mkfs.ext4 -F -L finnos "${DISK}3"
 post
 
 echo "===== [4/8] MOUNT ====="
 mkdir -p /mnt
-mount "${DISK}2" /mnt
+mount "${DISK}3" /mnt
 mkdir -p /mnt/boot
 mount "${DISK}1" /mnt/boot
 findmnt -o TARGET,SOURCE /mnt /mnt/boot

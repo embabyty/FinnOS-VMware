@@ -130,27 +130,29 @@ post
 echo "=== initramfs + bootloader ==="
 mkinitcpio -P 2>&1 | tail -5
 post
-ROOTUUID=$(blkid -s UUID -o value /dev/sda2)
+ROOTUUID=$(blkid -s UUID -o value /mnt)
 echo "ROOTUUID=$ROOTUUID"
 KERNEL=vmlinuz-linux
 ls -la /boot/ | head -20
 if grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=FinnOS --removable 2>&1 | tail -5; then
   grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | tail -5
   echo "BOOTLOADER=grub-efi"
-  # A machine that starts with a BIOS rather than EFI needs the boot code
-  # in the MBR as well: the EFI loader on the partition is not enough, and
-  # the install would be on the disk with no way to reach it.
-  if grub-install --target=i386-pc /dev/sda 2>&1 | tail -5; then
-    echo "BOOTLOADER=grub-bios"
-  else
-    echo "WARN: no BIOS boot code; this machine has to start with EFI"
-  fi
 else
   bootctl --esp-path=/boot install 2>&1 | tail -5 || true
   mkdir -p /boot/loader/entries
   printf 'default finnos.conf\ntimeout 3\n' > /boot/loader/loader.conf
   printf 'title FinnOS\nlinux %s\ninitrd /initramfs-linux.img\noptions root=UUID=%s rw quiet loglevel=3\n' "$KERNEL" "$ROOTUUID" > /boot/loader/entries/finnos.conf
   echo "BOOTLOADER=systemd-boot"
+fi
+# A machine that starts with a BIOS rather than EFI needs the boot code
+# in the MBR as well: the EFI loader on the partition is not enough, and
+# the install would be on the disk with no way to reach it. On a GPT disk
+# GRUB keeps that code in the BIOS boot partition the installer made.
+if grub-install --target=i386-pc /dev/sda 2>&1 | tail -5; then
+  grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | tail -5
+  echo "BOOTLOADER=grub-bios"
+else
+  echo "WARN: no BIOS boot code; this machine has to start with EFI"
 fi
 post
 
