@@ -104,10 +104,11 @@ EOF
 # The default boot entry passes finn.install on the kernel command line.
 # When it is there, the live shell hands over to the installer once it is
 # up, after a moment to back out.
-PROFILE="$WORK/root/root/.bash_profile"
-touch "$PROFILE"
-cat >> "$PROFILE" <<'EOF'
-
+#
+# The live environment's root shell is zsh, not bash, so the hook goes into
+# the file that shell reads when it logs in; .bash_profile is written as
+# well, for a live environment that is started with bash.
+HOOK='
 # Booted with the "Install FinnOS" entry of the install disc.
 if grep -qw finn.install /proc/cmdline 2>/dev/null; then
   echo
@@ -116,8 +117,13 @@ if grep -qw finn.install /proc/cmdline 2>/dev/null; then
   sleep 10
   /usr/local/bin/finn-install
 fi
-EOF
-chmod 644 "$PROFILE"
+'
+for profile in .zprofile .bash_profile; do
+  PROFILE="$WORK/root/root/$profile"
+  touch "$PROFILE"
+  printf '%s' "$HOOK" >> "$PROFILE"
+  chmod 644 "$PROFILE"
+done
 
 echo "==> adding the FinnOS boot entries"
 # BIOS boots through syslinux and UEFI through systemd-boot, and both menus
