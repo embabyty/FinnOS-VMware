@@ -38,6 +38,17 @@ fi
 post
 
 echo "===== [1/8] PREREQS ====="
+# The live environment ships a list of mirrors and the first one is not
+# always the quickest for the machine that is installing; the geo mirror
+# is anycast and picks one near the caller. The rest stay in the list for
+# the machine that is installed.
+if [ -f /etc/pacman.d/mirrorlist ]; then
+  {
+    echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch'
+    grep -v '^Server = https://geo.mirror.pkgbuild.com' /etc/pacman.d/mirrorlist
+  } > /etc/pacman.d/mirrorlist.new
+  mv /etc/pacman.d/mirrorlist.new /etc/pacman.d/mirrorlist
+fi
 pacman -Sy --noconfirm arch-install-scripts dosfstools parted 2>&1 | tail -5 || {
   sed -i 's/^SigLevel.*/SigLevel = Never/' /etc/pacman.conf
   pacman -Sy --noconfirm arch-install-scripts dosfstools parted 2>&1 | tail -5
@@ -72,12 +83,23 @@ echo "===== [5/8] PACSTRAP ====="
 # compositor: the disc carries the sources, and the machine they land on is
 # the one that can build them. The dev loop builds there too, so removing
 # the compiler again would only mean putting it back.
-yes | pacstrap /mnt base linux linux-firmware \
-  systemd sudo openssh networkmanager \
-  grub efibootmgr \
-  mesa wayland wayland-protocols libdrm libinput seatd \
-  fontconfig ttf-dejavu git python vim nano \
-  base-devel pkgconf libdrm libwebp freetype2 alsa-lib
+PKGS="base linux linux-firmware systemd sudo openssh networkmanager
+      grub efibootmgr mesa wayland wayland-protocols libdrm libinput seatd
+      fontconfig ttf-dejavu git python vim nano
+      base-devel pkgconf libwebp freetype2 alsa-lib"
+
+# A mirror that stalls must not fail the install. pacman keeps what it has
+# downloaded, so a retry only fetches what is missing, and it picks another
+# mirror for it. Three tries, and then it is a real failure.
+staged=0
+for try in 1 2 3; do
+  if yes | pacstrap /mnt $PKGS; then staged=1; break; fi
+  echo "pacstrap failed on try $try; retrying"
+done
+[ "$staged" = 1 ] || {
+  echo "FINN_INSTALL_FAILED: the base system did not install"
+  exit 1
+}
 post
 
 echo "===== [6/8] FSTAB ====="
@@ -100,7 +122,12 @@ else
   echo "payload taken from $HOST"
 fi
 chmod +x /mnt/root/finn-chroot.sh
-arch-chroot /mnt /root/finn-chroot.sh
+# The chroot is where the machine is actually configured; if it fails, the
+# install has failed, and saying otherwise would be a lie the reader acts on.
+arch-chroot /mnt /root/finn-chroot.sh || {
+  echo "FINN_INSTALL_FAILED: the machine could not be configured"
+  exit 1
+}
 post
 
 echo "===== [8/8] COMPLETE ====="

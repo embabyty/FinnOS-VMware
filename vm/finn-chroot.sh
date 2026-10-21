@@ -155,4 +155,11 @@ fi
 post
 
 curl -s -X POST --data-binary @/tmp/finn-chroot.log "$HOST/log" -o /dev/null 2>/dev/null || true
+# The bootloader is in place either way, so the machine boots; but a
+# machine without a shell is not a finished install, and the installer has
+# to hear that from here.
+if [ "$SHELL" != "built" ]; then
+  echo "FINN_CHROOT_FAILED: the shell was not built"
+  exit 1
+fi
 echo "FINN_CHROOT_COMPLETE"
