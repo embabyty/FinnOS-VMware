@@ -39,7 +39,12 @@ displayName = "$VM"
 guestOS = "other5xlinux-64"
 memsize = "$MEM"
 numvcpus = "$CPUS"
-firmware = "efi"
+firmware = "bios"
+# The machine starts with a BIOS. VMware's UEFI firmware exposes no
+# variables of its own and will not boot an EFI system partition from a
+# disk, so an install it cannot reach is the same as no install; the
+# installer writes the BIOS boot code as well as the EFI loader, and
+# the BIOS path works on both kinds of machine.
 bios.bootOrder = "cdrom,hdd"
 scsi0.present = "TRUE"
 scsi0.virtualDev = "lsilogic"

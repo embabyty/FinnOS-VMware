@@ -11,8 +11,8 @@ GBM, EGL and FreeType, and this is where the shell is actually run.
 | Name | `FinnOS-dev` |
 | Guest | Arch Linux x86_64 |
 | Resources | 4 GB RAM, 2 vCPU, 32 GB disk - the i3-4130 / 4 GB target |
-| Disk | `/dev/sda1` 512M EFI (vfat) + `/dev/sda2` 31.5G root (ext4, label `finnos`) |
-| Bootloader | GRUB `x86_64-efi`, bootloader-id `FinnOS` (removable) |
+| Disk | `/dev/sda1` 512M EFI (vfat) + `/dev/sda2` 1M BIOS boot + `/dev/sda3` root (ext4, label `finnos`) |
+| Bootloader | GRUB: the BIOS boot code in the MBR, and an EFI loader on the partition |
 | Console | VMware console, autologin `finn` on tty1 |
 | Network | VMware NAT, DHCP. The guest IP is assigned by VMware; read it with `ip addr` |
 | GPU | Intel HD Graphics (Mesa) - the accelerated path, GBM + EGL 1.5 |
