@@ -136,7 +136,15 @@ KERNEL=vmlinuz-linux
 ls -la /boot/ | head -20
 if grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=FinnOS --removable 2>&1 | tail -5; then
   grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | tail -5
-  echo "BOOTLOADER=grub"
+  echo "BOOTLOADER=grub-efi"
+  # A machine that starts with a BIOS rather than EFI needs the boot code
+  # in the MBR as well: the EFI loader on the partition is not enough, and
+  # the install would be on the disk with no way to reach it.
+  if grub-install --target=i386-pc /dev/sda 2>&1 | tail -5; then
+    echo "BOOTLOADER=grub-bios"
+  else
+    echo "WARN: no BIOS boot code; this machine has to start with EFI"
+  fi
 else
   bootctl --esp-path=/boot install 2>&1 | tail -5 || true
   mkdir -p /boot/loader/entries
